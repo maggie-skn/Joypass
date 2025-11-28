@@ -4,83 +4,58 @@ import { WishItem, WishType, WishStatus } from './types';
 import { WishCard } from './components/WishCard';
 import { AddWishModal } from './components/AddWishModal';
 import { StatsView } from './components/StatsView';
-import { wishService } from './services/firebase';
 
 function App() {
-  const [items, setItems] = useState<WishItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<WishItem[]>(() => {
+    const saved = localStorage.getItem('joypass_items');
+    // Migration: Add order field if missing
+    const parsed = saved ? JSON.parse(saved) : [];
+    return parsed.map((item: any, index: number) => ({
+        ...item,
+        order: item.order ?? index
+    }));
+  });
   
   const [filter, setFilter] = useState<'all' | 'limited' | 'indefinite' | 'completed'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WishItem | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'stats'>('list');
 
-  // Load data from Firebase
   useEffect(() => {
-    const unsubscribe = wishService.subscribe((data) => {
-      // Ensure data has the correct types
-      const parsedItems = data.map((item: any, index: number) => ({
-        ...item,
-        order: item.order ?? index, // Fallback for order if missing
-        // Convert Firestore timestamps to standard types if needed, 
-        // but we are storing dates as ISO strings in this app which is fine.
-      }));
-      setItems(parsedItems as WishItem[]);
-      setLoading(false);
-    });
+    localStorage.setItem('joypass_items', JSON.stringify(items));
+  }, [items]);
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
-  }, []);
-
-  const handleAddWish = async (data: Omit<WishItem, 'id' | 'status' | 'createdAt' | 'order'>) => {
-    const newItem = {
+  const handleAddWish = (data: Omit<WishItem, 'id' | 'status' | 'createdAt' | 'order'>) => {
+    const newItem: WishItem = {
       ...data,
+      id: crypto.randomUUID(),
       status: WishStatus.ACTIVE,
       createdAt: new Date().toISOString(),
-      order: Date.now(), // Use timestamp as simple default order
+      order: Date.now(), // Simple default order
     };
-    
-    try {
-      await wishService.add(newItem);
-    } catch (error) {
-      console.error("Error adding document: ", error);
-      alert("新增失敗，請檢查網路連線或 Firebase 設定");
-    }
+    setItems(prev => [newItem, ...prev]);
   };
 
-  const handleUpdateWish = async (id: string, data: Partial<WishItem>) => {
-    try {
-      await wishService.update(id, data);
-    } catch (error) {
-      console.error("Error updating document: ", error);
-    }
+  const handleUpdateWish = (id: string, data: Partial<WishItem>) => {
+      setItems(prev => prev.map(item => 
+        item.id === id ? { ...item, ...data } : item
+      ));
   };
 
-  const handleComplete = async (id: string) => {
-    try {
-      await wishService.update(id, { status: WishStatus.COMPLETED });
-    } catch (error) {
-      console.error("Error completing item: ", error);
-    }
+  const handleComplete = (id: string) => {
+    setItems(prev => prev.map(item => 
+      item.id === id ? { ...item, status: WishStatus.COMPLETED } : item
+    ));
   };
 
-  const handleUncomplete = async (id: string) => {
-    try {
-      await wishService.update(id, { status: WishStatus.ACTIVE });
-    } catch (error) {
-      console.error("Error uncompleting item: ", error);
-    }
+  const handleUncomplete = (id: string) => {
+    setItems(prev => prev.map(item => 
+      item.id === id ? { ...item, status: WishStatus.ACTIVE } : item
+    ));
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('確定要刪除這個願望嗎？')) {
-      try {
-        await wishService.delete(id);
-      } catch (error) {
-        console.error("Error deleting item: ", error);
-      }
-    }
+  const handleDelete = (id: string) => {
+    setItems(prev => prev.filter(item => item.id !== id));
   };
 
   const handleEditClick = (item: WishItem) => {
@@ -93,7 +68,7 @@ function App() {
       setEditingItem(null); // Clear editing state
   };
 
-  const handleMoveItem = async (id: string, direction: 'up' | 'down') => {
+  const handleMoveItem = (id: string, direction: 'up' | 'down') => {
     const activeIndefiniteItems = items
       .filter(i => i.type === WishType.INDEFINITE && i.status === WishStatus.ACTIVE)
       .sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -107,17 +82,14 @@ function App() {
     const itemA = activeIndefiniteItems[currentIndex];
     const itemB = activeIndefiniteItems[targetIndex];
 
-    // Swap orders in Firestore
-    try {
-      // Optimistic update locally not strictly needed as Firestore is fast, 
-      // but we update the backend and let the listener update the UI
-      await Promise.all([
-        wishService.update(itemA.id, { order: itemB.order }),
-        wishService.update(itemB.id, { order: itemA.order })
-      ]);
-    } catch (error) {
-      console.error("Error moving item: ", error);
-    }
+    // Swap orders
+    const newItems = items.map(item => {
+        if (item.id === itemA.id) return { ...item, order: itemB.order };
+        if (item.id === itemB.id) return { ...item, order: itemA.order };
+        return item;
+    });
+
+    setItems(newItems);
   };
 
   // Logic:
@@ -213,66 +185,58 @@ function App() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto p-4 pb-24 scroll-smooth no-scrollbar">
         
-        {loading ? (
-            <div className="flex justify-center items-center h-40">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#EAC100]"></div>
+        {viewMode === 'stats' && <StatsView items={filteredItems} />}
+
+        <div className="mb-4 flex justify-between items-end px-2">
+           <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+             {filteredItems.length} 個項目
+           </span>
+           {filter !== 'completed' && viewMode === 'list' && (
+             <span className="text-sm font-bold text-gray-700 font-mono">
+               總計 ${totalCost.toLocaleString()}
+             </span>
+           )}
+        </div>
+
+        {filteredItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center p-6">
+            <div className="w-20 h-20 bg-white/50 rounded-full flex items-center justify-center mb-5 text-gray-400 border border-white">
+              <Plus size={40} />
             </div>
+            <p className="text-gray-700 font-bold text-lg">清單是空的</p>
+            <p className="text-sm text-gray-500 mt-2">點擊右下角新增</p>
+          </div>
         ) : (
-            <>
-                {viewMode === 'stats' && <StatsView items={filteredItems} />}
+          <div className="flex flex-col gap-3">
+            {filteredItems.map((item, index) => {
+                 // Check if item is indefinite and calculate boundaries for move buttons
+                 const isIndefiniteType = item.type === WishType.INDEFINITE && item.status === WishStatus.ACTIVE;
+                 let isFirst = false;
+                 let isLast = false;
+                 
+                 if (isIndefiniteType) {
+                     // We need to know where this item sits specifically within the Indefinite list to disable buttons correctly
+                     const indefiniteList = filteredItems.filter(i => i.type === WishType.INDEFINITE && i.status === WishStatus.ACTIVE);
+                     const internalIndex = indefiniteList.findIndex(i => i.id === item.id);
+                     isFirst = internalIndex === 0;
+                     isLast = internalIndex === indefiniteList.length - 1;
+                 }
 
-                <div className="mb-4 flex justify-between items-end px-2">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    {filteredItems.length} 個項目
-                </span>
-                {filter !== 'completed' && viewMode === 'list' && (
-                    <span className="text-sm font-bold text-gray-700 font-mono">
-                    總計 ${totalCost.toLocaleString()}
-                    </span>
-                )}
-                </div>
-
-                {filteredItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-center p-6">
-                    <div className="w-20 h-20 bg-white/50 rounded-full flex items-center justify-center mb-5 text-gray-400 border border-white">
-                    <Plus size={40} />
-                    </div>
-                    <p className="text-gray-700 font-bold text-lg">清單是空的</p>
-                    <p className="text-sm text-gray-500 mt-2">點擊右下角新增</p>
-                </div>
-                ) : (
-                <div className="flex flex-col gap-3">
-                    {filteredItems.map((item, index) => {
-                        // Check if item is indefinite and calculate boundaries for move buttons
-                        const isIndefiniteType = item.type === WishType.INDEFINITE && item.status === WishStatus.ACTIVE;
-                        let isFirst = false;
-                        let isLast = false;
-                        
-                        if (isIndefiniteType) {
-                            // We need to know where this item sits specifically within the Indefinite list to disable buttons correctly
-                            const indefiniteList = filteredItems.filter(i => i.type === WishType.INDEFINITE && i.status === WishStatus.ACTIVE);
-                            const internalIndex = indefiniteList.findIndex(i => i.id === item.id);
-                            isFirst = internalIndex === 0;
-                            isLast = internalIndex === indefiniteList.length - 1;
-                        }
-
-                        return (
-                        <WishCard 
-                            key={item.id} 
-                            item={item} 
-                            onComplete={handleComplete} 
-                            onUncomplete={handleUncomplete}
-                            onDelete={handleDelete} 
-                            onEdit={handleEditClick}
-                            onMove={isIndefiniteType ? handleMoveItem : undefined}
-                            isFirst={isFirst}
-                            isLast={isLast}
-                        />
-                        );
-                    })}
-                </div>
-                )}
-            </>
+                 return (
+                  <WishCard 
+                    key={item.id} 
+                    item={item} 
+                    onComplete={handleComplete} 
+                    onUncomplete={handleUncomplete}
+                    onDelete={handleDelete} 
+                    onEdit={handleEditClick}
+                    onMove={isIndefiniteType ? handleMoveItem : undefined}
+                    isFirst={isFirst}
+                    isLast={isLast}
+                  />
+                );
+            })}
+          </div>
         )}
       </main>
 
