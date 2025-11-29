@@ -192,7 +192,7 @@ function App() {
              {filteredItems.length} 個項目
            </span>
            {filter !== 'completed' && viewMode === 'list' && (
-             <span className="text-sm font-bold text-gray-700 font-mono">
+             <span className="text-sm font-bold text-gray-700">
                總計 ${totalCost.toLocaleString()}
              </span>
            )}
