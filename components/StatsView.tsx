@@ -88,6 +88,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ items }) => {
       .style("font-size", "14px")
       .style("font-weight", "bold")
       .style("fill", "#94a3b8") // slate-400
+      .style("font-family", '"Noto Serif TC", serif')
       .text("總計");
 
     g.append("text")
@@ -96,6 +97,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ items }) => {
       .style("font-size", "16px")
       .style("fill", "#334155") // slate-700
       .style("font-weight", "bold")
+      .style("font-family", '"Noto Serif TC", serif')
       .text(`$${totalValue.toLocaleString()}`);
 
   }, [data, totalValue]);

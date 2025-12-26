@@ -1,6 +1,7 @@
 export enum WishType {
   INDEFINITE = 'INDEFINITE',
   LIMITED = 'LIMITED',
+  PREORDER = 'PREORDER',
 }
 
 export enum WishStatus {
@@ -16,7 +17,8 @@ export interface WishItem {
   price: number;
   category: string;
   type: WishType;
-  deadline?: string; // ISO string
+  deadline?: string; // ISO string for limited items or release date/order date
+  arrivalDate?: string; // New field for preorders
   status: WishStatus;
   createdAt: string;
   priority: 'low' | 'medium' | 'high';
@@ -26,4 +28,5 @@ export interface WishItem {
   imageUrl?: string;
   link?: string;
   note?: string;
+  shippingCost?: number; // Additional cost added during completion
 }

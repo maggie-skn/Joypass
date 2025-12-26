@@ -1,4 +1,4 @@
-import { LucideIcon, Smartphone, Home, Plane, Shirt, Book, Gift, Heart, MoreHorizontal, Watch } from "lucide-react";
+import { Smartphone, Home, Plane, Shirt, Book, Heart, MoreHorizontal } from "lucide-react";
 
 export const CATEGORIES: Record<string, { label: string; icon: any; color: string }> = {
   'Electronics': { label: '3C電子', icon: Smartphone, color: 'text-[#71848e] bg-[#e2e8e7]' },
@@ -10,4 +10,11 @@ export const CATEGORIES: Record<string, { label: string; icon: any; color: strin
   'Other': { label: '其他類別', icon: MoreHorizontal, color: 'text-gray-500 bg-gray-100' },
 };
 
+export const PREORDER_CATEGORIES: Record<string, { label: string; icon: any; color: string }> = {
+  'Hanwha': { label: '韓華', icon: '🍊', color: 'text-[#FF8C00] bg-[#FFF4E5]' },
+  'DeepSpace': { label: '深空', icon: '🌌', color: 'text-[#1B263B] bg-[#E0E2E6]' },
+  'Rainbow': { label: '彩虹', icon: '🌈', color: 'text-[#6B8E23] bg-[#F5FBEF]' },
+};
+
 export const DEFAULT_CATEGORY = 'Other';
+export const DEFAULT_PREORDER_CATEGORY = 'Hanwha';
