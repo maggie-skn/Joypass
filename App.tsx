@@ -14,7 +14,7 @@ type PreorderTab = 'all' | 'active' | 'completed' | 'stats';
 function App() {
   const [items, setItems] = useState<WishItem[]>(() => {
     try {
-      const saved = localStorage.getItem('joypass-items');
+      const saved = localStorage.getItem('joypass_items');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       console.error("Failed to load items", e);
@@ -31,7 +31,7 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   useEffect(() => {
-    localStorage.setItem('joypass-items', JSON.stringify(items));
+    localStorage.setItem('joypass_items', JSON.stringify(items));
   }, [items]);
 
   const handleAddWish = (data: Omit<WishItem, 'id' | 'status' | 'createdAt' | 'order'>) => {
