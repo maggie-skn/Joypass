@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { WishItem, WishType, WishStatus } from '../types';
 import { CATEGORIES, PREORDER_CATEGORIES, DEFAULT_CATEGORY, DEFAULT_PREORDER_CATEGORY } from '../constants';
-import { Clock, Calendar, CheckCircle, Trash2, ChevronUp, ChevronDown, Package, Edit2, RotateCcw, ExternalLink, X, StickyNote, Truck, Banknote } from 'lucide-react';
+import { Clock, Calendar, CheckCircle, Trash2, ChevronUp, ChevronDown, Package, Edit2, RotateCcw, ExternalLink, X, StickyNote, Truck, Banknote, History } from 'lucide-react';
 
 interface WishCardProps {
   item: WishItem;
@@ -34,7 +34,8 @@ export const WishCard: React.FC<WishCardProps> = ({ item, onComplete, onUncomple
   let daysLeft = '';
   let isExpired = false;
 
-  if (isLimited && item.deadline) {
+  // For active limited items, calculate time remaining
+  if (isLimited && item.deadline && !isCompleted) {
     const now = new Date();
     const deadlineDate = new Date(item.deadline);
     
@@ -62,7 +63,22 @@ export const WishCard: React.FC<WishCardProps> = ({ item, onComplete, onUncomple
     }
   }
 
-  const toggleNote = () => setIsNoteExpanded(!isNoteExpanded);
+  // Calculate waiting days for completed preorders
+  const getWaitingDays = () => {
+    if (!item.deadline || !item.arrivalDate) return null;
+    const start = new Date(item.deadline);
+    const end = new Date(item.arrivalDate);
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 ? diffDays : 0;
+  };
+
+  const toggleNote = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIsNoteExpanded(!isNoteExpanded);
+  };
+
+  const waitedDays = getWaitingDays();
 
   return (
     <>
@@ -89,26 +105,32 @@ export const WishCard: React.FC<WishCardProps> = ({ item, onComplete, onUncomple
         </div>
       )}
 
-      <div className={`relative bg-white rounded-2xl shadow-sm border border-gray-100 transition-all overflow-hidden ${isCompleted ? 'opacity-70 grayscale-[0.8] bg-gray-50' : ''}`}>
+      <div 
+        onClick={toggleNote}
+        className={`relative bg-white rounded-2xl shadow-sm border border-gray-100 transition-all overflow-hidden cursor-pointer active:scale-[0.99] group ${isCompleted ? 'bg-gray-50/80 border-gray-200' : 'hover:border-primary-200'}`}
+      >
         {isPreorder && (
-          <div className={`absolute top-0 right-0 px-3 py-1 ${categoryConfig.color} text-[10px] font-bold rounded-bl-xl border-l border-b flex items-center`}>
+          <div className={`absolute top-0 right-0 px-3 py-1 ${categoryConfig.color} text-[10px] font-bold rounded-bl-xl border-l border-b flex items-center z-10`}>
             <Package size={10} className="mr-1" />
             預購項目
           </div>
         )}
 
-        <div className="p-4 pb-2">
+        <div className={`p-4 pb-2 ${isCompleted ? 'opacity-75 grayscale-[0.5]' : ''}`}>
           <div className="flex justify-between items-start mb-1">
             <div className="flex items-start space-x-3 w-full">
               {item.imageUrl ? (
                 <div 
-                  className="w-16 h-16 flex-shrink-0 cursor-zoom-in group relative"
-                  onClick={() => setShowFullImage(true)}
+                  className="w-16 h-16 flex-shrink-0 cursor-zoom-in group/img relative"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowFullImage(true);
+                  }}
                 >
                    <img 
                      src={item.imageUrl} 
                      alt={item.title} 
-                     className="w-full h-full rounded-xl object-cover border border-gray-100 bg-gray-50 group-hover:opacity-90 transition-opacity" 
+                     className="w-full h-full rounded-xl object-cover border border-gray-100 bg-gray-50 group-hover/img:opacity-90 transition-opacity" 
                    />
                 </div>
               ) : (
@@ -133,7 +155,7 @@ export const WishCard: React.FC<WishCardProps> = ({ item, onComplete, onUncomple
                   {item.shippingCost && item.shippingCost > 0 && (
                     <span className="text-[10px] bg-green-50 text-green-600 px-1.5 rounded-md font-bold flex items-center">
                       <Banknote size={8} className="mr-1" />
-                      已含二補 ${item.shippingCost}
+                      補款 ${item.shippingCost}
                     </span>
                   )}
                 </div>
@@ -141,29 +163,57 @@ export const WishCard: React.FC<WishCardProps> = ({ item, onComplete, onUncomple
             </div>
           </div>
 
-          {(item.link || item.note) && (
-              <div className="flex flex-col gap-1.5 mt-2 mb-1 pl-[4.75rem]">
+          <div className={`pl-[4.75rem] transition-all duration-300 overflow-hidden ${isNoteExpanded ? 'max-h-64 mt-3 pb-2' : 'max-h-0'}`}>
+              <div className="flex flex-col gap-2">
                   {item.link && (
-                      <a href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-xs text-blue-500 hover:underline w-fit">
+                      <a 
+                        href={item.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center text-xs text-blue-500 hover:underline w-fit bg-blue-50 px-2 py-1 rounded-lg"
+                      >
                           <ExternalLink size={12} className="mr-1" />
-                          連結
+                          查看連結
                       </a>
                   )}
                   {item.note && (
-                      <div 
-                        onClick={toggleNote}
-                        className="flex items-start text-xs text-gray-500 cursor-pointer hover:text-gray-700 transition-colors group"
-                      >
-                          <StickyNote size={12} className="mr-1.5 mt-0.5 flex-shrink-0" />
-                          <span className={`${!isNoteExpanded ? 'truncate' : ''} break-all`}>
-                            {isNoteExpanded 
-                              ? item.note 
-                              : (item.note.length > 20 ? `${item.note.slice(0, 20)}...` : item.note)}
-                          </span>
+                      <div className="bg-gray-100/50 p-2.5 rounded-xl border border-gray-100">
+                        <div className="flex items-start text-xs text-gray-600">
+                            <StickyNote size={12} className="mr-1.5 mt-0.5 flex-shrink-0 text-gray-400" />
+                            <span className="break-all whitespace-pre-wrap">{item.note}</span>
+                        </div>
                       </div>
                   )}
+                  {isCompleted && (
+                    <div className="flex flex-col gap-1.5 mt-2">
+                        <div className="flex items-center space-x-2">
+                            <div className="h-px flex-1 bg-gray-200"></div>
+                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">已完成詳情</span>
+                            <div className="h-px flex-1 bg-gray-200"></div>
+                        </div>
+                        {isPreorder && (
+                          <div className="flex flex-col gap-1 px-1">
+                             <div className="flex justify-between text-[11px] font-bold">
+                                <span className="text-gray-400">下單日期：</span>
+                                <span className="text-gray-600">{item.deadline}</span>
+                             </div>
+                             <div className="flex justify-between text-[11px] font-bold">
+                                <span className="text-gray-400">到貨日期：</span>
+                                <span className="text-gray-600">{item.arrivalDate}</span>
+                             </div>
+                             {waitedDays !== null && (
+                               <div className="flex justify-between text-[11px] font-black border-t border-gray-100 pt-1 mt-1">
+                                  <span className="text-indigo-400 uppercase tracking-tighter">Waiting Time</span>
+                                  <span className="text-[#1B263B]">等待共 {waitedDays} 天</span>
+                               </div>
+                             )}
+                          </div>
+                        )}
+                    </div>
+                  )}
               </div>
-          )}
+          </div>
           
           <div className="flex items-center justify-between mt-1 pt-2 border-t border-gray-50">
             <div className="flex items-center text-xs font-medium">
@@ -172,7 +222,9 @@ export const WishCard: React.FC<WishCardProps> = ({ item, onComplete, onUncomple
                       {isCompleted ? (
                         <>
                           <Truck size={16} className="text-green-500" />
-                          <span className="text-green-600 font-bold">已到貨: {item.arrivalDate || '日期不詳'}</span>
+                          <span className="text-green-600 font-bold">
+                            已到貨 {waitedDays !== null && <span className="ml-1 opacity-70">({waitedDays}天)</span>}
+                          </span>
                         </>
                       ) : (
                         <>
@@ -190,13 +242,13 @@ export const WishCard: React.FC<WishCardProps> = ({ item, onComplete, onUncomple
                   ) : (
                     <div className="flex items-center space-x-1.5 text-gray-400">
                       <Calendar size={16} />
-                      <span>不限</span>
+                      <span>不限期限</span>
                     </div>
                   )
                 )}
             </div>
 
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
               {item.type === WishType.INDEFINITE && !isCompleted && onMove && (
                 <div className="flex items-center mr-2 bg-gray-50 rounded-lg border border-gray-100 h-6">
                     <button 
@@ -255,6 +307,13 @@ export const WishCard: React.FC<WishCardProps> = ({ item, onComplete, onUncomple
             </div>
           </div>
         </div>
+
+        {/* Note indicator */}
+        {(item.note || item.link) && (
+          <div className={`absolute bottom-0 left-[4.75rem] right-0 flex justify-center pb-0.5 transition-opacity ${isNoteExpanded ? 'opacity-0' : 'opacity-100'}`}>
+             <div className="w-8 h-1 bg-gray-100 rounded-full"></div>
+          </div>
+        )}
       </div>
     </>
   );

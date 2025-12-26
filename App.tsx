@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, ListFilter, LayoutGrid, Package } from 'lucide-react';
+import { Plus, ListFilter, LayoutGrid, Package, Clock, Heart } from 'lucide-react';
 import { WishItem, WishType, WishStatus } from './types';
 import { WishCard } from './components/WishCard';
 import { AddWishModal } from './components/AddWishModal';
@@ -14,7 +14,7 @@ type PreorderTab = 'all' | 'active' | 'completed' | 'stats';
 function App() {
   const [items, setItems] = useState<WishItem[]>(() => {
     try {
-      const saved = localStorage.getItem('joypass_items');
+      const saved = localStorage.getItem('joypass-items');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       console.error("Failed to load items", e);
@@ -31,7 +31,7 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   useEffect(() => {
-    localStorage.setItem('joypass_items', JSON.stringify(items));
+    localStorage.setItem('joypass-items', JSON.stringify(items));
   }, [items]);
 
   const handleAddWish = (data: Omit<WishItem, 'id' | 'status' | 'createdAt' | 'order'>) => {
@@ -118,7 +118,7 @@ function App() {
     }));
   };
 
-  const wishListItems = useMemo(() => {
+  const categorizedItems = useMemo(() => {
     const nonPreorderItems = items.filter(i => i.type !== WishType.PREORDER);
 
     const activeLimited = nonPreorderItems
@@ -135,6 +135,11 @@ function App() {
 
     const completed = nonPreorderItems.filter(i => i.status === WishStatus.COMPLETED);
 
+    return { activeLimited, activeIndefinite, completed };
+  }, [items]);
+
+  const wishListItems = useMemo(() => {
+    const { activeLimited, activeIndefinite, completed } = categorizedItems;
     switch (filter) {
       case 'limited': return activeLimited;
       case 'indefinite': return activeIndefinite;
@@ -142,7 +147,7 @@ function App() {
       case 'all':
       default: return [...activeLimited, ...activeIndefinite];
     }
-  }, [items, filter]);
+  }, [categorizedItems, filter]);
 
   const totalCost = wishListItems.reduce((acc, curr) => acc + curr.price, 0);
 
@@ -277,18 +282,51 @@ function App() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                  {wishListItems.map((item) => {
-                      const isIndefiniteType = item.type === WishType.INDEFINITE && item.status === WishStatus.ACTIVE;
-                      let isFirst = false;
-                      let isLast = false;
-                      
-                      if (isIndefiniteType) {
-                          const indefiniteList = wishListItems.filter(i => i.type === WishType.INDEFINITE && i.status === WishStatus.ACTIVE);
-                          const internalIndex = indefiniteList.findIndex(i => i.id === item.id);
-                          isFirst = internalIndex === 0;
-                          isLast = internalIndex === indefiniteList.length - 1;
-                      }
+                  {/* If filter is ALL, show section headers */}
+                  {filter === 'all' && categorizedItems.activeLimited.length > 0 && (
+                    <>
+                      <div className="flex items-center space-x-2 px-2 py-1 mt-2">
+                        <Clock size={14} className="text-primary-500" />
+                        <h3 className="text-xs font-black text-primary-600 uppercase tracking-widest">時效優先</h3>
+                      </div>
+                      {categorizedItems.activeLimited.map((item) => (
+                         <WishCard 
+                            key={item.id} 
+                            item={item} 
+                            onComplete={handleComplete} 
+                            onUncomplete={handleUncomplete}
+                            onDelete={handleDelete} 
+                            onEdit={handleEditClick}
+                        />
+                      ))}
+                    </>
+                  )}
 
+                  {filter === 'all' && categorizedItems.activeIndefinite.length > 0 && (
+                    <>
+                      <div className="flex items-center space-x-2 px-2 py-1 mt-4">
+                        <Heart size={14} className="text-pink-400" />
+                        <h3 className="text-xs font-black text-pink-500 uppercase tracking-widest">夢想清單</h3>
+                      </div>
+                      {categorizedItems.activeIndefinite.map((item, idx) => (
+                        <WishCard 
+                            key={item.id} 
+                            item={item} 
+                            onComplete={handleComplete} 
+                            onUncomplete={handleUncomplete}
+                            onDelete={handleDelete} 
+                            onEdit={handleEditClick}
+                            onMove={handleMoveItem}
+                            isFirst={idx === 0}
+                            isLast={idx === categorizedItems.activeIndefinite.length - 1}
+                        />
+                      ))}
+                    </>
+                  )}
+
+                  {/* If not ALL filter, just render the list normally */}
+                  {filter !== 'all' && wishListItems.map((item, idx) => {
+                      const isIndefiniteType = item.type === WishType.INDEFINITE && item.status === WishStatus.ACTIVE;
                       return (
                       <WishCard 
                           key={item.id} 
@@ -298,8 +336,8 @@ function App() {
                           onDelete={handleDelete} 
                           onEdit={handleEditClick}
                           onMove={isIndefiniteType ? handleMoveItem : undefined}
-                          isFirst={isFirst}
-                          isLast={isLast}
+                          isFirst={idx === 0}
+                          isLast={idx === wishListItems.length - 1}
                       />
                       );
                   })}
