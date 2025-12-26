@@ -54,7 +54,7 @@ export const AddPreorderModal: React.FC<AddPreorderModalProps> = ({ isOpen, onCl
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const MAX_WIDTH = 800;
+        const MAX_WIDTH = 500; // Updated from 800 to 500
         
         if (width > MAX_WIDTH) {
           height = (MAX_WIDTH / width) * height;
@@ -65,7 +65,8 @@ export const AddPreorderModal: React.FC<AddPreorderModalProps> = ({ isOpen, onCl
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
+        // Updated quality from 0.6 to 0.5 as requested
+        resolve(canvas.toDataURL('image/jpeg', 0.5));
       };
     });
   };

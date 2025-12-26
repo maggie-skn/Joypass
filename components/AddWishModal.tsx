@@ -57,7 +57,7 @@ export const AddWishModal: React.FC<AddWishModalProps> = ({ isOpen, onClose, onA
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const MAX_WIDTH = 800;
+        const MAX_WIDTH = 500; // Updated from 800 to 500
         
         if (width > MAX_WIDTH) {
           height = (MAX_WIDTH / width) * height;
@@ -68,8 +68,8 @@ export const AddWishModal: React.FC<AddWishModalProps> = ({ isOpen, onClose, onA
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        // Use quality 0.6 as requested
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
+        // Updated quality from 0.6 to 0.5 as requested
+        resolve(canvas.toDataURL('image/jpeg', 0.5));
       };
     });
   };
