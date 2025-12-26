@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { WishItem, WishType, WishStatus } from '../types';
 import { CATEGORIES, PREORDER_CATEGORIES, DEFAULT_CATEGORY, DEFAULT_PREORDER_CATEGORY } from '../constants';
-import { Clock, Calendar, CheckCircle, Trash2, ChevronUp, ChevronDown, Package, Edit2, RotateCcw, ExternalLink, X, StickyNote, Truck, Banknote, History } from 'lucide-react';
+import { Clock, Calendar, CheckCircle, Trash2, ChevronUp, ChevronDown, Package, Edit2, RotateCcw, ExternalLink, X, StickyNote, Truck, Banknote } from 'lucide-react';
 
 interface WishCardProps {
   item: WishItem;
@@ -152,12 +152,12 @@ export const WishCard: React.FC<WishCardProps> = ({ item, onComplete, onUncomple
                 </div>
                 <div className="flex items-center space-x-2 mt-1">
                   <span className="text-xs font-medium text-gray-400 tracking-wider block">{categoryConfig.label}</span>
-                  {item.shippingCost && item.shippingCost > 0 && (
+                  {(item.shippingCost ?? 0) > 0 ? (
                     <span className="text-[10px] bg-green-50 text-green-600 px-1.5 rounded-md font-bold flex items-center">
                       <Banknote size={8} className="mr-1" />
                       補款 ${item.shippingCost}
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -223,7 +223,7 @@ export const WishCard: React.FC<WishCardProps> = ({ item, onComplete, onUncomple
                         <>
                           <Truck size={16} className="text-green-500" />
                           <span className="text-green-600 font-bold">
-                            已到貨 {waitedDays !== null && <span className="ml-1 opacity-70">({waitedDays}天)</span>}
+                            已到貨 {waitedDays !== null ? <span className="ml-1 opacity-70">({waitedDays}天)</span> : null}
                           </span>
                         </>
                       ) : (
