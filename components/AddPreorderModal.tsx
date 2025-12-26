@@ -46,12 +46,37 @@ export const AddPreorderModal: React.FC<AddPreorderModalProps> = ({ isOpen, onCl
     setImageUrl('');
   };
 
+  const compressImage = (base64: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const MAX_WIDTH = 800;
+        
+        if (width > MAX_WIDTH) {
+          height = (MAX_WIDTH / width) * height;
+          width = MAX_WIDTH;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+    });
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
+      reader.onloadend = async () => {
+        const compressed = await compressImage(reader.result as string);
+        setImageUrl(compressed);
       };
       reader.readAsDataURL(file);
     }

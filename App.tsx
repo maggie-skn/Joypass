@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, ListFilter, LayoutGrid, Package } from 'lucide-react';
+import { Plus, ListFilter, LayoutGrid, Package, HardDrive, AlertTriangle } from 'lucide-react';
 import { WishItem, WishType, WishStatus } from './types';
 import { WishCard } from './components/WishCard';
 import { AddWishModal } from './components/AddWishModal';
@@ -29,6 +29,28 @@ function App() {
   const [isCompletePreorderModalOpen, setIsCompletePreorderModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WishItem | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+
+  // Storage usage calculation
+  const storageInfo = useMemo(() => {
+    let totalChars = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        totalChars += key.length + (localStorage.getItem(key)?.length || 0);
+      }
+    }
+    // localStorage is typically 5MB (5,000,000 chars in some browsers, or bytes)
+    const limitChars = 5 * 1024 * 1024; 
+    const percent = (totalChars / limitChars) * 100;
+    const usedMB = (totalChars / 1024 / 1024).toFixed(2);
+    
+    return {
+      percent: Math.min(100, percent).toFixed(1),
+      usedMB,
+      isWarning: percent > 85,
+      isFull: percent > 98
+    };
+  }, [items]);
 
   useEffect(() => {
     localStorage.setItem('joypass_items', JSON.stringify(items));
@@ -244,7 +266,7 @@ function App() {
         )}
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 pb-24 scroll-smooth no-scrollbar">
+      <main className="flex-1 overflow-y-auto p-4 pb-2 scroll-smooth no-scrollbar">
         {viewMode === 'stats' && <StatsView items={wishListItems} />}
         
         {viewMode === 'preorder' && (
@@ -282,18 +304,13 @@ function App() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                  {/* Unified list without separate headers for All tab */}
                   {wishListItems.map((item, idx) => {
                       const isIndefiniteType = item.type === WishType.INDEFINITE && item.status === WishStatus.ACTIVE;
                       
-                      // Calculate first/last specifically for the indefinite section if needed
-                      // or just pass index-based ones if they are not separated
                       let isFirstInSubGroup = false;
                       let isLastInSubGroup = false;
 
                       if (filter === 'all') {
-                          // When all are combined, moving items is trickier. 
-                          // We only allow moving if it's within the indefinite part.
                           const indefiniteItems = wishListItems.filter(i => i.type === WishType.INDEFINITE);
                           const currentIndefiniteIdx = indefiniteItems.findIndex(i => i.id === item.id);
                           if (currentIndefiniteIdx !== -1) {
@@ -323,6 +340,35 @@ function App() {
             )}
           </>
         )}
+
+        {/* Storage Usage Section */}
+        <div className="mt-8 mb-24 px-2">
+           <div className={`p-4 rounded-3xl border transition-all ${storageInfo.isWarning ? 'bg-red-50 border-red-100' : 'bg-white border-gray-100'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <HardDrive size={14} className={storageInfo.isWarning ? 'text-red-500' : 'text-gray-400'} />
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${storageInfo.isWarning ? 'text-red-500' : 'text-gray-400'}`}>
+                    LocalStorage 容量
+                  </span>
+                </div>
+                <span className={`text-[10px] font-black ${storageInfo.isWarning ? 'text-red-600' : 'text-gray-500'}`}>
+                  {storageInfo.usedMB} MB / 5.0 MB ({storageInfo.percent}%)
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-1000 ${storageInfo.isWarning ? 'bg-red-500' : 'bg-indigo-400'}`}
+                  style={{ width: `${storageInfo.percent}%` }}
+                ></div>
+              </div>
+              {storageInfo.isWarning && (
+                <div className="mt-2 flex items-center text-[10px] text-red-500 font-bold">
+                  <AlertTriangle size={12} className="mr-1" />
+                  儲存空間即將爆滿！請嘗試清理舊項目或壓縮照片。
+                </div>
+              )}
+           </div>
+        </div>
       </main>
 
       <div className="absolute bottom-8 right-6 z-20">
