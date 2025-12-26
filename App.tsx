@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, ListFilter, LayoutGrid, Package, Clock, Heart } from 'lucide-react';
+import { Plus, ListFilter, LayoutGrid, Package } from 'lucide-react';
 import { WishItem, WishType, WishStatus } from './types';
 import { WishCard } from './components/WishCard';
 import { AddWishModal } from './components/AddWishModal';
@@ -282,33 +282,30 @@ function App() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                  {/* If filter is ALL, show section headers */}
-                  {filter === 'all' && categorizedItems.activeLimited.length > 0 && (
-                    <>
-                      <div className="flex items-center space-x-2 px-2 py-1 mt-2">
-                        <Clock size={14} className="text-primary-500" />
-                        <h3 className="text-xs font-black text-primary-600 uppercase tracking-widest">時效優先</h3>
-                      </div>
-                      {categorizedItems.activeLimited.map((item) => (
-                         <WishCard 
-                            key={item.id} 
-                            item={item} 
-                            onComplete={handleComplete} 
-                            onUncomplete={handleUncomplete}
-                            onDelete={handleDelete} 
-                            onEdit={handleEditClick}
-                        />
-                      ))}
-                    </>
-                  )}
+                  {/* Unified list without separate headers for All tab */}
+                  {wishListItems.map((item, idx) => {
+                      const isIndefiniteType = item.type === WishType.INDEFINITE && item.status === WishStatus.ACTIVE;
+                      
+                      // Calculate first/last specifically for the indefinite section if needed
+                      // or just pass index-based ones if they are not separated
+                      let isFirstInSubGroup = false;
+                      let isLastInSubGroup = false;
 
-                  {filter === 'all' && categorizedItems.activeIndefinite.length > 0 && (
-                    <>
-                      <div className="flex items-center space-x-2 px-2 py-1 mt-4">
-                        <Heart size={14} className="text-pink-400" />
-                        <h3 className="text-xs font-black text-pink-500 uppercase tracking-widest">夢想清單</h3>
-                      </div>
-                      {categorizedItems.activeIndefinite.map((item, idx) => (
+                      if (filter === 'all') {
+                          // When all are combined, moving items is trickier. 
+                          // We only allow moving if it's within the indefinite part.
+                          const indefiniteItems = wishListItems.filter(i => i.type === WishType.INDEFINITE);
+                          const currentIndefiniteIdx = indefiniteItems.findIndex(i => i.id === item.id);
+                          if (currentIndefiniteIdx !== -1) {
+                              isFirstInSubGroup = currentIndefiniteIdx === 0;
+                              isLastInSubGroup = currentIndefiniteIdx === indefiniteItems.length - 1;
+                          }
+                      } else {
+                          isFirstInSubGroup = idx === 0;
+                          isLastInSubGroup = idx === wishListItems.length - 1;
+                      }
+
+                      return (
                         <WishCard 
                             key={item.id} 
                             item={item} 
@@ -316,29 +313,10 @@ function App() {
                             onUncomplete={handleUncomplete}
                             onDelete={handleDelete} 
                             onEdit={handleEditClick}
-                            onMove={handleMoveItem}
-                            isFirst={idx === 0}
-                            isLast={idx === categorizedItems.activeIndefinite.length - 1}
+                            onMove={isIndefiniteType ? handleMoveItem : undefined}
+                            isFirst={isFirstInSubGroup}
+                            isLast={isLastInSubGroup}
                         />
-                      ))}
-                    </>
-                  )}
-
-                  {/* If not ALL filter, just render the list normally */}
-                  {filter !== 'all' && wishListItems.map((item, idx) => {
-                      const isIndefiniteType = item.type === WishType.INDEFINITE && item.status === WishStatus.ACTIVE;
-                      return (
-                      <WishCard 
-                          key={item.id} 
-                          item={item} 
-                          onComplete={handleComplete} 
-                          onUncomplete={handleUncomplete}
-                          onDelete={handleDelete} 
-                          onEdit={handleEditClick}
-                          onMove={isIndefiniteType ? handleMoveItem : undefined}
-                          isFirst={idx === 0}
-                          isLast={idx === wishListItems.length - 1}
-                      />
                       );
                   })}
               </div>

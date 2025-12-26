@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { WishItem, WishType, WishStatus } from '../types';
 import { WishCard } from './WishCard';
 import { PREORDER_CATEGORIES } from '../constants';
-import { Package, Info } from 'lucide-react';
+import { Package, Info, ChevronLeft } from 'lucide-react';
 
 interface PreorderViewProps {
   items: WishItem[];
@@ -22,6 +22,8 @@ export const PreorderView: React.FC<PreorderViewProps> = ({
   onDelete, 
   onEdit 
 }) => {
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
   const allPreorderItems = useMemo(() => 
     items
       .filter(i => i.type === WishType.PREORDER)
@@ -37,9 +39,14 @@ export const PreorderView: React.FC<PreorderViewProps> = ({
     switch (activeTab) {
       case 'active': return allPreorderItems.filter(i => i.status !== WishStatus.COMPLETED);
       case 'completed': return allPreorderItems.filter(i => i.status === WishStatus.COMPLETED);
+      case 'stats': 
+        if (selectedCategory) {
+          return allPreorderItems.filter(i => i.category === selectedCategory);
+        }
+        return [];
       default: return allPreorderItems;
     }
-  }, [allPreorderItems, activeTab]);
+  }, [allPreorderItems, activeTab, selectedCategory]);
 
   const categoryStats = useMemo(() => {
     return Object.keys(PREORDER_CATEGORIES).map(catKey => {
@@ -56,27 +63,54 @@ export const PreorderView: React.FC<PreorderViewProps> = ({
     });
   }, [allPreorderItems]);
 
-  const totalCost = displayItems.reduce((acc, curr) => acc + curr.price + (curr.shippingCost || 0), 0);
+  const totalCost = useMemo(() => {
+    if (activeTab === 'stats' && !selectedCategory) {
+      return allPreorderItems.reduce((acc, curr) => acc + curr.price + (curr.shippingCost || 0), 0);
+    }
+    return displayItems.reduce((acc, curr) => acc + curr.price + (curr.shippingCost || 0), 0);
+  }, [displayItems, allPreorderItems, activeTab, selectedCategory]);
+
+  // Reset selected category when switching tabs
+  React.useEffect(() => {
+    setSelectedCategory(null);
+  }, [activeTab]);
 
   return (
     <div className="flex flex-col space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
       
-      {/* 簡約統計列：模仿主頁面樣式 */}
+      {/* 簡約統計列 */}
       <div className="flex justify-between items-end px-2 mt-2 mb-1">
-        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-          {displayItems.length} 個項目
-        </span>
+        <div className="flex items-center space-x-2">
+          {selectedCategory && activeTab === 'stats' && (
+            <button 
+              onClick={() => setSelectedCategory(null)}
+              className="p-1 -ml-1 text-indigo-400 hover:text-indigo-600 transition-colors"
+            >
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+            {selectedCategory && activeTab === 'stats' 
+              ? `${PREORDER_CATEGORIES[selectedCategory].label} (${displayItems.length})`
+              : `${activeTab === 'stats' ? '總計' : ''} ${displayItems.length || allPreorderItems.length} 個項目`
+            }
+          </span>
+        </div>
         <span className="text-sm font-bold text-gray-700">
-          預算總計 ${totalCost.toLocaleString()}
+          {selectedCategory && activeTab === 'stats' ? '類別小計' : '預購總計'} ${totalCost.toLocaleString()}
         </span>
       </div>
 
-      {activeTab === 'stats' ? (
+      {activeTab === 'stats' && !selectedCategory ? (
         <div className="grid grid-cols-1 gap-4 animate-in fade-in duration-300 py-2">
           {categoryStats.map(stat => (
-            <div key={stat.key} className="bg-white rounded-3xl p-5 shadow-sm border border-indigo-50 flex items-center justify-between">
+            <button 
+              key={stat.key} 
+              onClick={() => setSelectedCategory(stat.key)}
+              className="bg-white rounded-3xl p-5 shadow-sm border border-indigo-50 flex items-center justify-between text-left transition-all hover:scale-[1.02] active:scale-[0.98] group"
+            >
               <div className="flex items-center space-x-5">
-                <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center ${stat.color}`}>
+                <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center ${stat.color} group-hover:shadow-inner transition-all`}>
                   {typeof stat.icon === 'string' ? (
                     <span className="text-3xl">{stat.icon}</span>
                   ) : (
@@ -92,7 +126,7 @@ export const PreorderView: React.FC<PreorderViewProps> = ({
                 <p className="text-xl font-black text-[#1B263B] tabular-nums">${stat.total.toLocaleString()}</p>
                 <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-1">累積消費</p>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       ) : (
